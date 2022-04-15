@@ -5,3 +5,9 @@ project-data.zip
 .virtual_documents/obtain_data.ipynb
 .ipynb_checkpoints/Pre_processing-checkpoint.ipynb
 .ipynb_checkpoints/obtain_data-checkpoint.ipynb
+*.txt
+__MACOSX/._tweet-objects.zip
+__MACOSX/._eval.py
+__MACOSX/._tweet-objects
+*.json
+tweet-objects.zip
