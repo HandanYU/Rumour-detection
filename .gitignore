@@ -11,3 +11,5 @@ __MACOSX/._eval.py
 __MACOSX/._tweet-objects
 *.json
 tweet-objects.zip
+.ipynb_checkpoints/utils-checkpoint.py
+*.pyc
