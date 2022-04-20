@@ -25,3 +25,8 @@ NLP Project/Pre-processing.ipynb
 .ipynb_checkpoints/Untitled0-checkpoint.ipynb
 .virtual_documents/experiment.ipynb
 .virtual_documents/get_dataloader.ipynb
+10-bert-tpu.ipynb
+10-bert.ipynb
+*.pkl
+.ipynb_checkpoints/10-bert-checkpoint.ipynb
+.ipynb_checkpoints/10-bert-tpu-checkpoint.ipynb
