@@ -30,3 +30,4 @@ NLP Project/Pre-processing.ipynb
 *.pkl
 .ipynb_checkpoints/10-bert-checkpoint.ipynb
 .ipynb_checkpoints/10-bert-tpu-checkpoint.ipynb
+*.dat
