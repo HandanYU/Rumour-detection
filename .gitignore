@@ -19,3 +19,9 @@ NLP Project/obtain data.ipynb
 NLP Project/origin data/raw data/.DS_Store
 NLP Project/Pre-processing.ipynb
 *.csv
+*.py
+.ipynb_checkpoints/experiment-checkpoint.ipynb
+.ipynb_checkpoints/get_dataloader-checkpoint.ipynb
+.ipynb_checkpoints/Untitled0-checkpoint.ipynb
+.virtual_documents/experiment.ipynb
+.virtual_documents/get_dataloader.ipynb
