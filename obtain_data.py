@@ -1,5 +1,9 @@
 # split source reply ids
 from utils import timer
+from collections import defaultdict
+import json
+import pandas as pd
+
 @timer('ms')
 def split_source_reply(txt_file):
   """
@@ -9,9 +13,8 @@ def split_source_reply(txt_file):
       ids = f.readlines()
   source_ids = []
   reply_ids = []
-  source_txt_file = txt_file.split('.')[0] + '_source_data.txt'
-  print(source_txt_file)
-  reply_txt_file = txt_file.split('.')[0] + '_reply_data.txt'
+  source_txt_file = txt_file.split('.')[0] + '_source.txt'
+  reply_txt_file = txt_file.split('.')[0] + '_reply.txt'
   for i in range(len(ids)):
       source_ids.append(ids[i].split(',')[0].strip())
       reply_ids.extend([r.strip() for r in ids[i].split(',')[1:]])
@@ -36,9 +39,6 @@ def split_source_reply(txt_file):
 # !twarc2 hydrate  train_source.txt > train_source_data.jsonl
 # resource: https://scholarslab.github.io/learn-twarc/06-twarc-command-basics.html
 
-from collections import defaultdict
-import json
-import pandas as pd
 
 # get train and dev features
 @timer('ms')
@@ -91,8 +91,76 @@ def get_user_info(jsonl_file_name):
         file.write(dict_json)
 
 
+@timer('ms')
+def sort_by_time(raw_file, json_file):
+    with open(raw_file) as file:
+        ids = file.readlines()
 
+    with open(json_file, 'r+') as file:
+        content = file.read()
+        content=json.loads(content)
+        df = pd.DataFrame(content)
+        df = df.T
+
+    save_name = raw_file[:-4] + '_sorted.txt'
+    with open(save_name, 'w') as file:
+        date = pd.Series(pd.DatetimeIndex(df.iloc[:, 6]), index=df.index)
+        df.drop(['created_at'], axis=1, inplace=True)
+        df['time'] = date
+
+        for id_ in ids:
+            ids_ = id_.strip().split(',')
+            source_id = ids_[0]
+            file.write(source_id)
+            if len(ids_) > 1:
+                reply_ids = ids_[1:]
+                reply_ids[-1] = reply_ids[-1].replace('\n', '')
+                valid_ids = [index for index in reply_ids if index in df.index]
+                sorted_replies = df.loc[valid_ids].sort_values(by='time')
+                if len(valid_ids) > 0:
+                    file.write(',')
+
+                for i, index in enumerate(sorted_replies.index):
+                    file.write(index)
+                    if i != len(sorted_replies.index) - 1:
+                        file.write(',')
+
+            file.write('\n')
+
+def sort_by_time_test(raw_file, json_file):
+    with open(raw_file) as file:
+        ids = file.readlines()
+    df = pd.read_json(path_or_buf=json_file, lines=True)
+    df.index = [str(i) for i in df['id']]
+    save_name = raw_file[:-4] + '_sorted.txt'
+    with open(save_name, 'w') as file:
+        date = pd.Series(pd.DatetimeIndex(df['created_at']), index=df.index)
+        df.drop(['created_at'], axis=1, inplace=True)
+        df['time'] = date
+        for id_ in ids:
+            ids_ = id_.strip().split(',')
+            source_id = ids_[0]
+            file.write(source_id)
+            if len(ids_) > 1:
+                reply_ids = ids_[1:]
+                reply_ids[-1] = reply_ids[-1].strip()
+                valid_ids = [index for index in reply_ids if index in df.index]
+                sorted_replies = df.loc[valid_ids].sort_values(by='time')
+                if len(valid_ids) > 0:
+                    file.write(',')
+
+                for i, index in enumerate(sorted_replies.index):
+                    file.write(index)
+                    if i != len(sorted_replies.index) - 1:
+                        file.write(',')
+
+            file.write('\n')
 if __name__ == '__main__':
+    print('split reply and source:=========')
+    split_source_reply('data/original_data/dev.data.txt')
+    split_source_reply('data/original_data/train.data.txt')
+    split_source_reply('data/original_data/test.data.txt')
+
     jsonls = ['./data/full data/dev_source_data.jsonl',
             './data/full data/dev_reply_data.jsonl',
             './data/full data/train_source_data.jsonl',
@@ -105,3 +173,12 @@ if __name__ == '__main__':
     print('get user info:=====')
     for jsonl in jsonls:
         get_user_info(jsonl)
+    print('sort the replies')
+    raw_files = ['data/original_data/train.data.txt', 'data/original_data/dev.data.txt']
+    json_files = ['./data/full data/train_reply.json', './data/full data/dev_reply.json']
+    for raw_file, json_file in zip(raw_files, json_files):
+        sort_by_time(raw_file, json_file)
+    raw_files = ['./data/original_data/test.data.txt']
+    json_files = ['./data/tweet-objects/test_reply.json']
+    for raw_file, json_file in zip(raw_files, json_files):
+        sort_by_time_test(raw_file, json_file)

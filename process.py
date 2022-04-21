@@ -292,6 +292,7 @@ if __name__ == '__main__':
     dev_stat_feat_df, dev_tweet_df = extract_stat_tweet_feat(dev_df)
     print('process test.=========')             
     test_df = processing_test()
+    print(test_df['reply_text'])
     test_stat_feat_df, test_tweet_df = extract_stat_tweet_feat(test_df)
 
     print('process minmax.=========')     
