@@ -16,5 +16,5 @@ tweet-objects.zip
 *.jsonl
 *.zip
 NLP Project/obtain data.ipynb
-NLP Project/origin data/raw data/.DS_Store
+*/.DS_Store
 NLP Project/Pre-processing.ipynb
