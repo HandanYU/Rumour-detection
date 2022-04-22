@@ -212,7 +212,6 @@ def processing_train_dev(data_type):
     # ['text', 'reply_count', 'like_count', 'retweet_count', 'quote_count',
     # 'possibly_sensitive', 'created_at', 'user_id', 'has_url',
     # 'mentioned_url_num', 'id_num', 'tweet_id']
-    
     source_df = concat_label(data_type, source_df)
     source_df = concat_reply(data_type, source_df)
     source_df = check_weekday(source_df)
@@ -224,7 +223,8 @@ def processing_train_dev(data_type):
     reply_df.index = reply_df['tweet_id']
     source_df.index = source_df['tweet_id']
     # concat replies info to source_df
-    statis_feature = ['reply_count', 'like_count', 'retweet_count', 'quote_count', 
+    # quote_count
+    statis_feature = ['reply_count', 'like_count', 'retweet_count', 
                         'possibly_sensitive', 'has_url', 'mentioned_url_num', 
                         'id_num', 'isweekday', 'senti_score']
     source_df[['reply_text'] + ['reply_' + s for s in statis_feature]] = source_df.apply(lambda x: concat_reply_info(x['reply'], reply_df, statis_feature), axis=1, result_type='expand')                
@@ -233,6 +233,7 @@ def processing_train_dev(data_type):
 
 def processing_test():
     source_df = pd.read_json(path_or_buf='./data/tweet-objects/test_source.json', lines=True)
+    
     reply_df= pd.read_json(path_or_buf='./data/tweet-objects/test_reply.json', lines=True)
     source_df = clean_test_data(source_df)
     reply_df = clean_test_data(reply_df)
@@ -242,6 +243,11 @@ def processing_test():
     # get reply statistic info
     reply_df['has_url'] = reply_df['entities'].apply(lambda x: 0 if len(x['urls']) == 0 else 1)
     source_df = concat_reply('test', source_df)
+    source_df['reply_count'] = source_df['reply'].apply(lambda x: len(x.split(',')))
+    source_df.index = source_df['tweet_id']
+    with open('data/original_data/test_source.txt', 'r') as f:
+        c = f.readlines()
+    source_df = source_df.loc[[i.strip() for i in c]]
     source_df = check_weekday_test(source_df)
     reply_df = check_weekday_test(reply_df)
     # add sentiment score
@@ -250,7 +256,7 @@ def processing_test():
     reply_df.index = reply_df['tweet_id']
     reply_df = reply_df.rename(columns={'retweet_count': 'retweet_count', 'favorite_count': 'like_count',
                                         'mentioned_url_num': 'mentioned_url_num', 'id_num': 'id_num', 'isweekday': 'isweekday'})
-    source_df.index = source_df['tweet_id']
+    # source_df.index = source_df['tweet_id']
     source_df = source_df.rename(columns={'retweet_count': 'retweet_count', 'favorite_count': 'like_count', 'followers_count': 'followers_count',
                                         'mentioned_url_num': 'mentioned_url_num', 'id_num': 'id_num', 'isweekday': 'isweekday', 
                                         'verified': 'verified', 'listed_count': 'tweet_count'})
@@ -260,21 +266,25 @@ def processing_test():
                         'possibly_sensitive', 'has_url', 'mentioned_url_num', 
                         'id_num', 'isweekday', 'senti_score']
     source_df[['reply_text'] + ['reply_' + s for s in statis_feature]] = source_df.apply(lambda x: concat_reply_info(x['reply'], reply_df, statis_feature), axis=1, result_type='expand')          
-    source_df[['reply_reply_count', 'reply_quote_count', 'reply_count', 'quote_count']] = 0      
+    # source_df[['reply_reply_count', 'reply_quote_count', 'quote_count']] = 0      
     return source_df
 
-def extract_stat_tweet_feat(df):
+def extract_stat_tweet_feat(istrain, df):
     # extract statistic features
-    statistic_features = ['reply_reply_count', 'reply_like_count',
-       'reply_retweet_count', 'reply_quote_count', 'reply_possibly_sensitive',
+    # reply_reply_count， reply_quote_count，quote_count
+    statistic_features = ['reply_like_count',
+       'reply_retweet_count', 'reply_possibly_sensitive',
        'reply_has_url', 'reply_mentioned_url_num', 'reply_id_num',
-       'reply_isweekday', 'reply_senti_score', 'reply_count', 'like_count', 'retweet_count', 'quote_count',
+       'reply_isweekday', 'reply_senti_score', 'reply_count', 'like_count', 'retweet_count',
        'possibly_sensitive', 'has_url',
        'mentioned_url_num', 'id_num', 'isweekday', 'followers_count', 'tweet_count', 'verified',
        'senti_score' ]
     stat_feat_df = df[statistic_features]
     stat_feat_df.index = df['tweet_id']
-    tweet_df = df[['tweet_id', 'text', 'reply_text']]
+    if istrain:
+        tweet_df = df[['tweet_id', 'text', 'reply_text', 'label']]
+    else:
+        tweet_df = df[['tweet_id', 'text', 'reply_text']]
     # tweet_df = df.drop(columns=statistic_features)
     tweet_df.index = df['tweet_id']
     # convert into float
@@ -288,12 +298,12 @@ if __name__ == '__main__':
     train_df = processing_train_dev('train')
     print('process dev.=========')             
     dev_df = processing_train_dev('dev')
-    train_stat_feat_df, train_tweet_df = extract_stat_tweet_feat(train_df)
-    dev_stat_feat_df, dev_tweet_df = extract_stat_tweet_feat(dev_df)
+    train_stat_feat_df, train_tweet_df = extract_stat_tweet_feat(True, train_df)
+    dev_stat_feat_df, dev_tweet_df = extract_stat_tweet_feat(True, dev_df)
     print('process test.=========')             
     test_df = processing_test()
     print(test_df['reply_text'])
-    test_stat_feat_df, test_tweet_df = extract_stat_tweet_feat(test_df)
+    test_stat_feat_df, test_tweet_df = extract_stat_tweet_feat(False, test_df)
 
     print('process minmax.=========')     
     minmax = preprocessing.MinMaxScaler()

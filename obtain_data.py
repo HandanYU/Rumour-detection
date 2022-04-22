@@ -3,7 +3,7 @@ from utils import timer
 from collections import defaultdict
 import json
 import pandas as pd
-
+import os
 @timer('ms')
 def split_source_reply(txt_file):
   """
@@ -55,7 +55,7 @@ def filter_feature(jsonl_file_name):
             data_dict[json_data.data.iloc[i][j]['id']]['reply_count'] = json_data.data.iloc[i][j]['public_metrics']['reply_count']
             data_dict[json_data.data.iloc[i][j]['id']]['like_count'] = json_data.data.iloc[i][j]['public_metrics']['like_count']
             data_dict[json_data.data.iloc[i][j]['id']]['retweet_count'] = json_data.data.iloc[i][j]['public_metrics']['retweet_count']
-            data_dict[json_data.data.iloc[i][j]['id']]['quote_count'] = json_data.data.iloc[i][j]['public_metrics']['quote_count']
+            # data_dict[json_data.data.iloc[i][j]['id']]['quote_count'] = json_data.data.iloc[i][j]['public_metrics']['quote_count']
             data_dict[json_data.data.iloc[i][j]['id']]['possibly_sensitive'] = json_data.data.iloc[i][j]['possibly_sensitive']
             data_dict[json_data.data.iloc[i][j]['id']]['created_at'] = json_data.data.iloc[i][j]['created_at'] #add create time
             data_dict[json_data.data.iloc[i][j]['id']]['user_id'] = json_data.data.iloc[i][j]['author_id'] #add user id
@@ -155,16 +155,65 @@ def sort_by_time_test(raw_file, json_file):
                         file.write(',')
 
             file.write('\n')
+import tqdm
+def merge_json(merged_json, ids_list):
+    # merged_json: "test_source.json"
+    merges_file = os.path.join('./data/tweet-objects/', merged_json)
+    path_results = './data/tweet-objects/'
+    with open(merges_file, "w", encoding="utf-8") as f0:
+        for file in os.listdir(path_results):
+            if file.split('.')[0] in ids_list:
+                print('write')
+                with open(os.path.join(path_results, file), "r", encoding="utf-8") as f1:
+                    for line in tqdm.tqdm(f1):
+                        line_dict = json.loads(line)
+                        js = json.dumps(line_dict, ensure_ascii=False)
+                        f0.write(js + '\n')
+                    f1.close()
+        f0.close()
+@timer('ms')
+def get_user_info(jsonl_file_name):
+    """
+    jsonl_file_name: 'dev_source_data.jsonl'
+    """
+    json_file_name = '_'.join(jsonl_file_name.split('_')[:-1]) + '_userinfo.json'
+    json_data = pd.read_json(path_or_buf=jsonl_file_name, lines=True)
+    # collect the user info
+    info_dict = defaultdict(dict)
+    for i in range(json_data.shape[0]):
+        for j in range(len(json_data.includes.iloc[i]['users'])):
+            info_dict[json_data.includes.iloc[i]['users'][j]['id']]['followers_count'] = json_data.includes.iloc[i]['users'][j]['public_metrics']['followers_count']
+            info_dict[json_data.includes.iloc[i]['users'][j]['id']]['tweet_count'] = json_data.includes.iloc[i]['users'][j]['public_metrics']['tweet_count']
+            info_dict[json_data.includes.iloc[i]['users'][j]['id']]['verified'] = json_data.includes.iloc[i]['users'][j]['verified']
+    #  convert into json format
+    dict_json=json.dumps(info_dict)
+    # save json file
+    with open(json_file_name, 'w+') as file:
+        file.write(dict_json)
+
 if __name__ == '__main__':
     print('split reply and source:=========')
     split_source_reply('data/original_data/dev.data.txt')
     split_source_reply('data/original_data/train.data.txt')
     split_source_reply('data/original_data/test.data.txt')
-
+    with open('data/original_data/test_source.txt', 'r') as f:
+        content = f.readlines()
+    source_ids = [c.strip() for c in content]
+    with open('data/original_data/test_reply.txt', 'r') as f:
+        content = f.readlines()
+    reply_ids = [c.strip() for c in content]
+    merge_json('test_source.json', source_ids)
+    merge_json('test_reply.json', reply_ids)
     jsonls = ['./data/full data/dev_source_data.jsonl',
             './data/full data/dev_reply_data.jsonl',
             './data/full data/train_source_data.jsonl',
             './data/full data/train_reply_data.jsonl']
+    print('get user info')
+    jsonls = ['./data/full data/dev_source_data.jsonl',
+            './data/full data/train_source_data.jsonl']
+
+    for jsonl in jsonls:
+        get_user_info(jsonl)
     print('filter feature:=====')
     for jsonl in jsonls:
         filter_feature(jsonl)
