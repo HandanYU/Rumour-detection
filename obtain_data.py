@@ -55,7 +55,7 @@ def filter_feature(jsonl_file_name):
             data_dict[json_data.data.iloc[i][j]['id']]['reply_count'] = json_data.data.iloc[i][j]['public_metrics']['reply_count']
             data_dict[json_data.data.iloc[i][j]['id']]['like_count'] = json_data.data.iloc[i][j]['public_metrics']['like_count']
             data_dict[json_data.data.iloc[i][j]['id']]['retweet_count'] = json_data.data.iloc[i][j]['public_metrics']['retweet_count']
-            # data_dict[json_data.data.iloc[i][j]['id']]['quote_count'] = json_data.data.iloc[i][j]['public_metrics']['quote_count']
+            data_dict[json_data.data.iloc[i][j]['id']]['quote_count'] = json_data.data.iloc[i][j]['public_metrics']['quote_count']
             data_dict[json_data.data.iloc[i][j]['id']]['possibly_sensitive'] = json_data.data.iloc[i][j]['possibly_sensitive']
             data_dict[json_data.data.iloc[i][j]['id']]['created_at'] = json_data.data.iloc[i][j]['created_at'] #add create time
             data_dict[json_data.data.iloc[i][j]['id']]['user_id'] = json_data.data.iloc[i][j]['author_id'] #add user id
@@ -196,38 +196,39 @@ if __name__ == '__main__':
     split_source_reply('data/original_data/dev.data.txt')
     split_source_reply('data/original_data/train.data.txt')
     split_source_reply('data/original_data/test.data.txt')
-    with open('data/original_data/test_source.txt', 'r') as f:
-        content = f.readlines()
-    source_ids = [c.strip() for c in content]
-    with open('data/original_data/test_reply.txt', 'r') as f:
-        content = f.readlines()
-    reply_ids = [c.strip() for c in content]
-    merge_json('test_source.json', source_ids)
-    merge_json('test_reply.json', reply_ids)
+    # with open('data/original_data/test_source.txt', 'r') as f:
+    #     content = f.readlines()
+    # source_ids = [c.strip() for c in content]
+    # with open('data/original_data/test_reply.txt', 'r') as f:
+    #     content = f.readlines()
+    # reply_ids = [c.strip() for c in content]
+    # merge_json('test_source.json', source_ids)
+    # merge_json('test_reply.json', reply_ids)
+    
+    print('filter feature:=====')
     jsonls = ['./data/full data/dev_source_data.jsonl',
             './data/full data/dev_reply_data.jsonl',
             './data/full data/train_source_data.jsonl',
-            './data/full data/train_reply_data.jsonl']
-    print('get user info')
-    jsonls = ['./data/full data/dev_source_data.jsonl',
-            './data/full data/train_source_data.jsonl']
-
-    for jsonl in jsonls:
-        get_user_info(jsonl)
-    print('filter feature:=====')
+            './data/full data/train_reply_data.jsonl',
+            './data/full data/test_source_data.jsonl',
+            './data/full data/test_reply_data.jsonl'
+            ]
     for jsonl in jsonls:
         filter_feature(jsonl)
+
     jsonls = ['./data/full data/dev_source_data.jsonl',
-            './data/full data/train_source_data.jsonl']
+            './data/full data/train_source_data.jsonl',
+            './data/full data/test_source_data.jsonl',
+            ]
     print('get user info:=====')
     for jsonl in jsonls:
         get_user_info(jsonl)
     print('sort the replies')
-    raw_files = ['data/original_data/train.data.txt', 'data/original_data/dev.data.txt']
-    json_files = ['./data/full data/train_reply.json', './data/full data/dev_reply.json']
+    raw_files = ['data/original_data/train.data.txt', 'data/original_data/dev.data.txt', 'data/original_data/test.data.txt']
+    json_files = ['./data/full data/train_reply.json', './data/full data/dev_reply.json', './data/full data/test_reply.json']
     for raw_file, json_file in zip(raw_files, json_files):
         sort_by_time(raw_file, json_file)
-    raw_files = ['./data/original_data/test.data.txt']
-    json_files = ['./data/tweet-objects/test_reply.json']
-    for raw_file, json_file in zip(raw_files, json_files):
-        sort_by_time_test(raw_file, json_file)
+    # raw_files = ['./data/original_data/test.data.txt']
+    # json_files = ['./data/tweet-objects/test_reply.json']
+    # for raw_file, json_file in zip(raw_files, json_files):
+    #     sort_by_time_test(raw_file, json_file)

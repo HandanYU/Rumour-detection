@@ -75,16 +75,21 @@ def clean_tweet(content):
     #, month_num
 
 # @timer('ms')
-def json2df(json_file):
+def json2df(json_file, json_content=None):
     """
     json_file: 'train_reply.json'
     """
-    with open(json_file,'r+') as file:
-        content = file.read()
+    if json_content is None:
+        with open(json_file,'r+') as file:
+            content = file.read()
+    else:
+        content = json_content
     content = json.loads(content)
     df = pd.DataFrame(content)
     df = df.T
     return df
+
+
 # df = json2df('train_reply.json')
 def clean_data(data_type):
   """
@@ -113,14 +118,16 @@ def clean_data(data_type):
 # train_source_df, train_reply_df = clean_data('train')
 # dev_source_df, dev_reply_df = clean_data('dev')
 
-def clean_test_data(df):
+def clean_test_data(df, is_test=True):
     df['temp'] = df['text'].apply(lambda x: clean_tweet(x))
     df['text'] = df['temp'].apply(lambda x: x[0])
     df['mentioned_url_num'] = df['temp'].apply(lambda x: x[1])
     df['id_num'] = df['temp'].apply(lambda x: x[2])
     df['tweet_id'] = df['id'].apply(lambda x: str(x))
-    
-    df = df.drop(columns=['temp', 'id', 'id_str'])
+    if is_test:
+        df = df.drop(columns=['temp', 'id', 'id_str'])
+    else:
+        df = df.drop(columns=['temp'])
     return df
 
 def concat_label(data_type, source_feature_df):
@@ -201,7 +208,7 @@ def concat_reply_info(reply_ids, reply_df, statis_feature):
         res_values.append(statistic_dict[f])
     return res_values
 
-def processing_train_dev(data_type):
+def processing_train_dev(data_type, isTrain=True):
     source_df, reply_df = clean_data(data_type)
     # source_df: 
     # ['text', 'reply_count', 'like_count', 'retweet_count', 'quote_count',
@@ -212,7 +219,8 @@ def processing_train_dev(data_type):
     # ['text', 'reply_count', 'like_count', 'retweet_count', 'quote_count',
     # 'possibly_sensitive', 'created_at', 'user_id', 'has_url',
     # 'mentioned_url_num', 'id_num', 'tweet_id']
-    source_df = concat_label(data_type, source_df)
+    if isTrain:
+        source_df = concat_label(data_type, source_df)
     source_df = concat_reply(data_type, source_df)
     source_df = check_weekday(source_df)
     source_df = concat_user_info(data_type, source_df)
@@ -224,11 +232,13 @@ def processing_train_dev(data_type):
     source_df.index = source_df['tweet_id']
     # concat replies info to source_df
     # quote_count
-    statis_feature = ['reply_count', 'like_count', 'retweet_count', 
+    statis_feature = ['reply_count', 'like_count', 'retweet_count', 'quote_count',
                         'possibly_sensitive', 'has_url', 'mentioned_url_num', 
                         'id_num', 'isweekday', 'senti_score']
     source_df[['reply_text'] + ['reply_' + s for s in statis_feature]] = source_df.apply(lambda x: concat_reply_info(x['reply'], reply_df, statis_feature), axis=1, result_type='expand')                
-    source_df = source_df.loc[~source_df['reply_text'].isnull()]
+    if isTrain:
+        source_df = source_df.loc[~source_df['reply_text'].isnull()]
+    
     return source_df
 
 def processing_test():
@@ -298,12 +308,14 @@ if __name__ == '__main__':
     train_df = processing_train_dev('train')
     print('process dev.=========')             
     dev_df = processing_train_dev('dev')
+    print('process test.======')
+    test_df = processing_train_dev('test', False)
     train_stat_feat_df, train_tweet_df = extract_stat_tweet_feat(True, train_df)
     dev_stat_feat_df, dev_tweet_df = extract_stat_tweet_feat(True, dev_df)
-    print('process test.=========')             
-    test_df = processing_test()
-    print(test_df['reply_text'])
     test_stat_feat_df, test_tweet_df = extract_stat_tweet_feat(False, test_df)
+    # print('process test.=========')             
+    # test_df = processing_test()
+    # test_stat_feat_df, test_tweet_df = extract_stat_tweet_feat(False, test_df)
 
     print('process minmax.=========')     
     minmax = preprocessing.MinMaxScaler()
