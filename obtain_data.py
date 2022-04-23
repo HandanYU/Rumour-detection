@@ -42,12 +42,15 @@ def split_source_reply(txt_file):
 
 # get train and dev features
 @timer('ms')
-def filter_feature(jsonl_file_name):
+def filter_feature(jsonl_file_name, covid_json=None):
     """
     jsonl_file_name: 'dev_source_data.jsonl'
     """
-    json_file_name = '_'.join(jsonl_file_name.split('_')[:-1]) + '.json'
-    json_data = pd.read_json(path_or_buf=jsonl_file_name, lines=True)
+    if covid_json is None:
+        json_file_name = '_'.join(jsonl_file_name.split('_')[:-1]) + '.json'
+        json_data = pd.read_json(path_or_buf=jsonl_file_name, lines=True)
+    else:
+        json_data = covid_json
     data_dict = defaultdict(dict)
     for i in range(json_data.shape[0]):
         for j in range(len(json_data.data.iloc[i])):
@@ -64,8 +67,11 @@ def filter_feature(jsonl_file_name):
     #  convert into json format
     dict_json=json.dumps(data_dict)
     # save json file
-    with open(json_file_name, 'w+') as file:
-        file.write(dict_json)
+    if covid_json is None:
+        with open(json_file_name, 'w+') as file:
+            file.write(dict_json)
+    else:
+        return dict_json
 # filter_feature('dev_reply_data.jsonl')
 
 
@@ -172,12 +178,15 @@ def merge_json(merged_json, ids_list):
                     f1.close()
         f0.close()
 @timer('ms')
-def get_user_info(jsonl_file_name):
+def get_user_info(jsonl_file_name, covid_json=None):
     """
     jsonl_file_name: 'dev_source_data.jsonl'
     """
-    json_file_name = '_'.join(jsonl_file_name.split('_')[:-1]) + '_userinfo.json'
-    json_data = pd.read_json(path_or_buf=jsonl_file_name, lines=True)
+    if covid_json is None:
+        json_file_name = '_'.join(jsonl_file_name.split('_')[:-1]) + '_userinfo.json'
+        json_data = pd.read_json(path_or_buf=jsonl_file_name, lines=True)
+    else:
+        json_data = covid_json
     # collect the user info
     info_dict = defaultdict(dict)
     for i in range(json_data.shape[0]):
@@ -188,8 +197,11 @@ def get_user_info(jsonl_file_name):
     #  convert into json format
     dict_json=json.dumps(info_dict)
     # save json file
-    with open(json_file_name, 'w+') as file:
-        file.write(dict_json)
+    if covid_json is None:
+        with open(json_file_name, 'w+') as file:
+            file.write(dict_json)
+    else:
+        return dict_json
 
 if __name__ == '__main__':
     print('split reply and source:=========')

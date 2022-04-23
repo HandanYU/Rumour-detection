@@ -10,12 +10,13 @@ from datetime import datetime
 from textblob import TextBlob
 import numpy as np
 from sklearn import preprocessing
+from time import strftime
 nltk.download('wordnet')
 stemmer = nltk.stem.porter.PorterStemmer()
-stopword = stopwords.words('english')
-
+stopword = stopwords.words('english') 
 def clean_tweet(content):
-    from time import strftime
+    
+
     # def compute_num_month(content):
     #     month_num = 0
     #     month = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "octorber", "november", "december", 
@@ -25,6 +26,7 @@ def clean_tweet(content):
     #             month_num += 1
     #     return month_num
     # replace_abbreviations
+    
     content = content.lower()
     content = re.sub(r"won't", "will not", content)
     content = re.sub(r"can't", "can not", content)
@@ -54,12 +56,17 @@ def clean_tweet(content):
     ## www.
     content = re.sub(r'www.[^ ]+', '', content)
     # get the emoji and replace them as words
-    emojis = emoji.distinct_emoji_list(content)
-    for e in emojis:
-        content = re.sub(e, emoji.demojize(e), content)
+    # emojis = emoji.distinct_emoji_list(content)
+    # for e in emojis:
+    #     try:
+    #         content = re.sub(e, emoji.demojize(e), content)
+    #     except:
+    #         print('no corresponding emoji!')
+    #         print(content)
+    #         content = re.sub(e, '', content)
     content = re.sub('\w+\d+\w+', '', content) # remove the word contains numbers
     
-    content = re.sub(r'[:_!+“\-=——,$%^\?\\~\"\'@#$%&*<>{}\[\]()/]', ' ', content) # remove punctuation, except .
+    content = re.sub(r'[:_!\+“\-=——,$%^\?\\~\"\'@#$%&\*<>{}\[\]()/]', ' ', content) # remove punctuation, except .
     
     content = re.sub(r"\s+", " ", content) # conver multiple spaces as a single space
     content = content.strip()
@@ -79,7 +86,8 @@ def json2df(json_file, json_content=None):
     """
     json_file: 'train_reply.json'
     """
-    if json_content is None:
+    print(json_content is None)
+    if json_file is not None:
         with open(json_file,'r+') as file:
             content = file.read()
     else:
@@ -117,18 +125,19 @@ def clean_data(data_type):
   return source_df, reply_df
 # train_source_df, train_reply_df = clean_data('train')
 # dev_source_df, dev_reply_df = clean_data('dev')
-
 def clean_test_data(df, is_test=True):
     df['temp'] = df['text'].apply(lambda x: clean_tweet(x))
     df['text'] = df['temp'].apply(lambda x: x[0])
     df['mentioned_url_num'] = df['temp'].apply(lambda x: x[1])
     df['id_num'] = df['temp'].apply(lambda x: x[2])
-    df['tweet_id'] = df['id'].apply(lambda x: str(x))
+    df['tweet_id'] = [str(i) for i in df.index]
     if is_test:
+        df['tweet_id'] = df['id'].apply(lambda x: str(x))
         df = df.drop(columns=['temp', 'id', 'id_str'])
     else:
         df = df.drop(columns=['temp'])
     return df
+
 
 def concat_label(data_type, source_feature_df):
     """Concat labels on source tweets
@@ -180,11 +189,14 @@ def check_weekday_test(df):
     df['isweekday'] = df['isoweekday'].apply(lambda x: 1 <= x <= 5)
     df = df.drop(columns='isoweekday')
     return df
-def concat_user_info(data_type, source_df):
+def concat_user_info(data_type, source_df, user_json=None):
     """concat user info on source tweets
     data_type: 'dev', 'train'
     """
-    df = json2df(f'./data/full data/{data_type}_source_userinfo.json')
+    if data_type != 'covid':
+        df = json2df(f'./data/full data/{data_type}_source_userinfo.json')
+    else:
+        df = json2df(None, user_json)
     df['user_id'] = df.index
     source_df = pd.merge(source_df, df, on='user_id', how='left')
     return source_df
@@ -303,7 +315,8 @@ def extract_stat_tweet_feat(istrain, df):
     # fill nan using corresponding mean
     stat_feat_df = stat_feat_df.fillna(stat_feat_df.mean())
     return stat_feat_df, tweet_df
-if __name__ == '__main__':  
+if __name__ == '__main__': 
+    
     print('process train.=========')             
     train_df = processing_train_dev('train')
     print('process dev.=========')             
@@ -317,19 +330,12 @@ if __name__ == '__main__':
     # test_df = processing_test()
     # test_stat_feat_df, test_tweet_df = extract_stat_tweet_feat(False, test_df)
 
-    print('process minmax.=========')     
-    minmax = preprocessing.MinMaxScaler()
-    train_scaled_stat_feat_df = pd.DataFrame(columns=train_stat_feat_df.columns, index=train_stat_feat_df.index,
-                                            data=minmax.fit_transform(train_stat_feat_df))
-    dev_scaled_stat_feat_df = pd.DataFrame(columns=dev_stat_feat_df.columns, index=dev_stat_feat_df.index,
-                                        data=minmax.transform(dev_stat_feat_df))
-    test_scaled_stat_feat_df = pd.DataFrame(columns=test_stat_feat_df.columns, index=test_stat_feat_df.index,
-                                        data=minmax.transform(test_stat_feat_df))
+
     print('save data.=========')     
     dev_tweet_df.to_csv('./data/filtered data/dev_tweet_df.csv')
-    dev_scaled_stat_feat_df.to_csv('./data/filtered data/dev_stat_feat_df.csv')
+    dev_stat_feat_df.to_csv('./data/filtered data/dev_stat_feat_df.csv')
     train_tweet_df.to_csv('./data/filtered data/train_tweet_df.csv')
-    train_scaled_stat_feat_df.to_csv('./data/filtered data/train_stat_feat_df.csv')
+    train_stat_feat_df.to_csv('./data/filtered data/train_stat_feat_df.csv')
     test_tweet_df.to_csv('./data/filtered data/test_tweet_df.csv')
-    test_scaled_stat_feat_df.to_csv('./data/filtered data/test_stat_feat_df.csv')
+    test_stat_feat_df.to_csv('./data/filtered data/test_stat_feat_df.csv')
     
