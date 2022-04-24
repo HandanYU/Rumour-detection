@@ -164,6 +164,7 @@ def concat_reply(data_type, source_df):
     """
     df = pd.DataFrame(columns=['tweet_id', 'reply'])
     with open(f'./data/original_data/{data_type}.data_sorted.txt', 'r') as f:
+    # with open(f'./data/original_data/{data_type}.data_sorted.txt', 'r') as f:
         content = f.readlines()
     df['tweet_id'] = [c.split(',')[0].strip() for c in content]
     df['reply'] = [','.join([i.strip() for i in c.split(',')[1:]]) for c in content]
