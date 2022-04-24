@@ -19,9 +19,18 @@ from textblob import TextBlob
 import pandas as pd
 from sklearn import preprocessing
 from time import strftime
+import argparse
 nltk.download('wordnet')
 stemmer = nltk.stem.porter.PorterStemmer()
 stopword = stopwords.words('english') 
+
+parser= argparse.ArgumentParser(description='ArgUtils')
+parser.add_argument('-type', type=str, default='test', help="data type, train or dev or test or covid")
+# parser.add_argument('-a', type=str, default=None, help="agent_id_from_platform id")
+args = parser.parse_args()
+TYPE = args.type
+
+
 def clean_tweet(content):
     
 
@@ -151,18 +160,17 @@ def split_source_reply(txt_file):
       for i in reply_ids:
         f.write(i)
         f.write('\n')
+    # save reply with source_id
   with open(reply_source_txt_file,'w') as f:
       for i in reply_source:
           f.write(','.join(i))
           f.write('\n')
 def merge_json(data_type, source_or_reply, ids_list):
-    # merged_json: "test_source.json"
     merges_file = os.path.join(f'./tweepy_data/objects/', f'{data_type}_{source_or_reply}.json')
     path_results = f'./tweepy_data/objects/{data_type}_objects'
     with open(merges_file, "w", encoding="utf-8") as f0:
         for file in tqdm.tqdm(os.listdir(path_results)):
             if file.split('.')[0] in ids_list:
-                print('write')
                 with open(os.path.join(path_results, file), "r", encoding="utf-8") as f1:
                     for line in f1:
                         line_dict = json.loads(line)
@@ -213,7 +221,7 @@ def concat_reply(data_type, source_df):
     return source_df
 def concat_label(data_type, source_feature_df):
     """Concat labels on source tweets
-    data_type: 'dev', 'train'
+    data_type: 'dev', 'train', 'test'
     """
     df = pd.DataFrame(columns=['tweet_id', 'label'])
     with open(f'./tweepy_data/original_data/{data_type}_source.txt', 'r') as f:
@@ -347,4 +355,9 @@ def get_tweet_stat_df(data_type):
     else:
         stat_feat_df, tweet_df = extract_stat_tweet_feat(True, df)
     return  stat_feat_df, tweet_df
-# stat_feat_df, tweet_df = get_tweet_stat_df('train')
+if __name__ == '__main__':
+    print(TYPE)
+    stat_feat_df, tweet_df = get_tweet_stat_df(TYPE)
+    stat_feat_df.to_csv(f'tweepy_data/res/{TYPE}_stat_feat_df.csv', index=False)
+    tweet_df.to_csv(f'tweepy_data/res/{TYPE}_tweet_df.csv', index=False)
+    print('saving.')
