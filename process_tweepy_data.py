@@ -1,21 +1,170 @@
+# -*- coding: utf-8 -*
+import emoji
+from nltk.corpus import stopwords
+import re
+import nltk
+import json
+import pandas as pd
+from utils import timer
+from datetime import datetime
+from textblob import TextBlob
+import numpy as np
+from sklearn import preprocessing
 import os
 import tqdm
 import json
+import numpy as np
 import pandas as pd
 from textblob import TextBlob
 import pandas as pd
 from sklearn import preprocessing
-from process import clean_test_data, concat_reply, check_weekday_test, concat_reply_info, extract_stat_tweet_feat
+from time import strftime
+nltk.download('wordnet')
+stemmer = nltk.stem.porter.PorterStemmer()
+stopword = stopwords.words('english') 
+def clean_tweet(content):
+    
+
+    # def compute_num_month(content):
+    #     month_num = 0
+    #     month = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "octorber", "november", "december", 
+    #             "jan.", "feb.", "mar.", "apr.", "may.", "jun.", "jul.", "aug.", "sept.", "oct.", "nov.", "dec."]
+    #     for i in content:
+    #         if i in month:
+    #             month_num += 1
+    #     return month_num
+    # replace_abbreviations
+    
+    content = content.lower()
+    content = re.sub(r"won't", "will not", content)
+    content = re.sub(r"can't", "can not", content)
+    content = re.sub(r"cannot", "can not", content)
+    content = re.sub(r"n't", " not", content)
+    content = re.sub(r"'re", " are", content)
+    content = re.sub(r"'s", " is", content)
+    content = re.sub(r"'d", " would", content)
+    content = re.sub(r"'ll", " will", content)
+    content = re.sub(r"'t", " not", content)
+    content = re.sub(r"'ve", " have", content)
+    content = re.sub(r"'m", " am", content)
+    content = re.sub(r".”", " ", content)
+    
+    # get the number of month be mentioned
+    # month_num = compute_num_month(content)
+
+    # get the number of url
+    mentioned_url_num = len(re.findall(r'https?://[^ ]+', content))
+    mentioned_url_num += len(re.findall(r'www.[^ ]+', content))
+    # get the number of twitter ID be mentioned
+    id_num = len(re.findall(r'@[A-Za-z0-9_]+', content))
+    content = re.sub(r'@[A-Za-z0-9_]+', '', content) # remove twitter ID
+    # remove url 
+    ## http, https
+    content = re.sub(r'https?://[^ ]+', '', content) 
+    ## www.
+    content = re.sub(r'www.[^ ]+', '', content)
+    # get the emoji and replace them as words
+    # emojis = emoji.distinct_emoji_list(content)
+    # for e in emojis:
+    #     try:
+    #         content = re.sub(e, emoji.demojize(e), content)
+    #     except:
+    #         print('no corresponding emoji!')
+    #         print(content)
+    #         content = re.sub(e, '', content)
+    content = re.sub('\w+\d+\w+', '', content) # remove the word contains numbers
+    
+    content = re.sub(r'[:_!\+“\-=——,$%^\?\\~\"\'@#$%&\*<>{}\[\]()/]', ' ', content) # remove punctuation, except .
+    
+    content = re.sub(r"\s+", " ", content) # conver multiple spaces as a single space
+    content = content.strip()
+    
+    # remove stop words 
+    # TODO: and keep only english letters
+    
+    content = [c for c in content.split(' ') if c not in stopword and c.isalpha()]
+    # do stemming
+    content = [stemmer.stem(token.strip()) for token in content]
+    
+    return ' '.join(content), mentioned_url_num, id_num 
+    #, month_num
+# @timer('ms')
+def json2df(json_file, json_content=None):
+    """
+    json_file: 'train_reply.json'
+    """
+    print(json_content is None)
+    if json_file is not None:
+        with open(json_file,'r+') as file:
+            content = file.read()
+    else:
+        content = json_content
+    content = json.loads(content)
+    df = pd.DataFrame(content)
+    df = df.T
+    return df
+def clean_test_data(df, is_test=True):
+    df['temp'] = df['text'].apply(lambda x: clean_tweet(x))
+    df['text'] = df['temp'].apply(lambda x: x[0])
+    df['mentioned_url_num'] = df['temp'].apply(lambda x: x[1])
+    df['id_num'] = df['temp'].apply(lambda x: x[2])
+    df['tweet_id'] = [str(i) for i in df.index]
+    if is_test:
+        df['tweet_id'] = df['id'].apply(lambda x: str(x))
+        df = df.drop(columns=['temp', 'id', 'id_str'])
+    else:
+        df = df.drop(columns=['temp'])
+    return df
+
+def check_weekday_test(df):
+    """
+    df: source_df or reply_df
+    """
+    df['isoweekday'] = df['created_at'].apply(lambda x: datetime.strptime(str(x).split(' ')[0], '%Y-%m-%d').isoweekday())
+    df['isweekday'] = df['isoweekday'].apply(lambda x: 1 <= x <= 5)
+    df = df.drop(columns='isoweekday')
+    return df
+
+def split_source_reply(txt_file):
+  """
+  txt_file: 'train.data.txt'
+  """
+  with open(txt_file) as f:
+      ids = f.readlines()
+  source_ids = []
+  reply_ids = []
+  reply_source = []
+  source_txt_file = txt_file.split('.')[0] + '_source.txt'
+  reply_txt_file = txt_file.split('.')[0] + '_reply.txt'
+  reply_source_txt_file = txt_file.split('.')[0] + '_reply_with_source.txt'
+  for i in range(len(ids)):
+      source_ids.append(ids[i].split(',')[0].strip())
+      reply_ids.extend([r.strip() for r in ids[i].split(',')[1:]])
+      reply_source.extend([[r.strip(), ids[i].split(',')[0].strip()] for r in ids[i].split(',')[1:]])
+# save source_ids
+  with open(source_txt_file,'w') as f:
+      for i in source_ids:
+          f.write(i)
+          f.write('\n')
+# save reply_ids
+  with open(reply_txt_file,'w') as f:
+      for i in reply_ids:
+        f.write(i)
+        f.write('\n')
+  with open(reply_source_txt_file,'w') as f:
+      for i in reply_source:
+          f.write(','.join(i))
+          f.write('\n')
 def merge_json(data_type, source_or_reply, ids_list):
     # merged_json: "test_source.json"
     merges_file = os.path.join(f'./tweepy_data/objects/', f'{data_type}_{source_or_reply}.json')
     path_results = f'./tweepy_data/objects/{data_type}_objects'
     with open(merges_file, "w", encoding="utf-8") as f0:
-        for file in os.listdir(path_results):
+        for file in tqdm.tqdm(os.listdir(path_results)):
             if file.split('.')[0] in ids_list:
                 print('write')
                 with open(os.path.join(path_results, file), "r", encoding="utf-8") as f1:
-                    for line in tqdm.tqdm(f1):
+                    for line in f1:
                         line_dict = json.loads(line)
                         js = json.dumps(line_dict, ensure_ascii=False)
                         f0.write(js + '\n')
@@ -76,8 +225,6 @@ def concat_label(data_type, source_feature_df):
     df_labels = pd.merge(source_feature_df, df, on='tweet_id', how='left')
     df_labels['label'] = df_labels['label'].apply(lambda x: 0 if x == 'nonrumour' else 1)
     return df_labels
-
-
 def processing(data_type):
 
     # './data/tweet-objects/test_source.json'
@@ -113,7 +260,7 @@ def processing(data_type):
 
     # sorted ids
     if data_type == 'test':
-        with open('tweep_data/original_data/test_source.txt', 'r') as f:
+        with open('tweepy_data/original_data/test_source.txt', 'r') as f:
             c = f.readlines()
         source_df = source_df.loc[[i.strip() for i in c]]
     source_df = check_weekday_test(source_df)
@@ -122,62 +269,45 @@ def processing(data_type):
     source_df['senti_score'] = source_df['text'].apply(lambda x: 1 if TextBlob(x).sentiment.polarity > 0 else 0)
     reply_df['senti_score'] = reply_df['text'].apply(lambda x: 1 if TextBlob(x).sentiment.polarity > 0 else 0)
     reply_df.index = [str(i) for i in reply_df['tweet_id']]
-    # reply_df = reply_df.rename(columns={'retweet_count': 'retweet_count', 'favorite_count': 'like_count',
-    #                                     'mentioned_url_num': 'mentioned_url_num', 'id_num': 'id_num', 'isweekday': 'isweekday'})
-    # source_df.index = source_df['tweet_id']
-    # source_df = source_df.rename(columns={'retweet_count': 'retweet_count', 'favorite_count': 'like_count', 'followers_count': 'followers_count',
-    #                                     'mentioned_url_num': 'mentioned_url_num', 'id_num': 'id_num', 'isweekday': 'isweekday', 
-    #                                     'verified': 'verified', 'listed_count': 'tweet_count'})
-    # concat replies info to source_df
-    # reply_count, quote_count
-    # count_feat = ['in_reply_to_status_id',
-    #    'in_reply_to_user_id','quoted_status_id']
-    # for c in count_feat:
-    #     source_df[c] = source_df[c].apply(lambda x: 1 if x)
-    statis_feature = [ 'contributors',
-       'possibly_sensitive', 'possibly_sensitive_appealable', 'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
-       'followers_count', 'friends_count', 'listed_count', 'favourites_count',
-       'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
-       'geo_enabled', 'verified', 'contributors_enabled', 'isweekday']
-    source_df[['reply_text'] + ['reply_' + s for s in statis_feature]] = source_df.apply(lambda x: concat_reply_info(x['reply'], reply_df, statis_feature), axis=1, result_type='expand')          
-    if data_type == 'train':
-        source_df = concat_label(data_type, source_df)
-    # source_df[['reply_reply_count', 'reply_quote_count', 'quote_count']] = 0      
-    return source_df
-
-def split_source_reply(txt_file):
-  """
-  txt_file: 'train.data.txt'
-  """
-  with open(txt_file) as f:
-      ids = f.readlines()
-  source_ids = []
-  reply_ids = []
-  source_txt_file = txt_file.split('.')[0] + '_source.txt'
-  reply_txt_file = txt_file.split('.')[0] + '_reply.txt'
-  for i in range(len(ids)):
-      source_ids.append(ids[i].split(',')[0].strip())
-      reply_ids.extend([r.strip() for r in ids[i].split(',')[1:]])
-# save source_ids
-  with open(source_txt_file,'w') as f:
-      for i in source_ids:
-          f.write(i)
-          f.write('\n')
-# save reply_ids
-  with open(reply_txt_file,'w') as f:
-      for i in reply_ids:
-        f.write(i)
-        f.write('\n')
+    
+    data_txt = np.loadtxt(f'./tweepy_data/original_data/{data_type}_reply_with_source.txt',dtype=str, delimiter=',')
+    data_txtDF = pd.DataFrame(columns=['tweet_id', 'source_id'], data=data_txt)
+    reply_df['tweet_id'] = reply_df.index
+    reply_df.index = list(range(len(reply_df)))
+    reply_df_source = pd.merge(reply_df, data_txtDF, on='tweet_id', how='left')
+    reply_df_source.index = [str(i) for i in reply_df_source['tweet_id']]
+    stat_data = []
+    statis_feature=[ 'contributors',
+        'possibly_sensitive', 'possibly_sensitive_appealable',
+            'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
+        'followers_count', 'friends_count', 'listed_count', 'favourites_count',
+        'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
+        'geo_enabled', 'verified', 'contributors_enabled', 'isweekday']
+    print('compute reply stat feat')
+    for source_id, df in reply_df_source.groupby('source_id'):
+        if str(source_id) not in source_df.index:
+            continue
+        if ','  in source_df.loc[source_id]['reply']:
+            ids = [str(i).strip() for i in source_df.loc[source_id]['reply'].split(',')]
+            cur_data = [source_id, ' [SEP] '.join(df.loc[ids]['text'].values)]
+            for i in statis_feature:
+                cur_data.append(df[i].sum())
+            stat_data.append(cur_data)
+    reply_stat_df = pd.DataFrame(columns=['tweet_id', 'reply_text'] + ['reply_' + s for s in statis_feature], data=stat_data)
+    source_df.index = list(range(len(source_df)))
+    source_df_reply = pd.merge(source_df, reply_stat_df, on='tweet_id', how='left')
+    if data_type != 'test':
+        source_df_reply = concat_label(data_type, source_df_reply)   
+    return  source_df_reply
 def extract_stat_tweet_feat(istrain, df):
     # extract statistic features
     # reply_reply_count， reply_quote_count，quote_count
-    statistic_features = ['reply_' + i for i in ['contributors',
+    statistic_features = ['reply_' + i for i in [ 'contributors',
        'possibly_sensitive', 'possibly_sensitive_appealable',
-       'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
+        'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
        'followers_count', 'friends_count', 'listed_count', 'favourites_count',
        'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
-       'geo_enabled', 'verified', 'contributors_enabled', 'isweekday']] + [
-        'contributors',
+       'geo_enabled', 'verified', 'contributors_enabled', 'isweekday']] + ['contributors',
        'possibly_sensitive', 'possibly_sensitive_appealable',
         'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
        'followers_count', 'friends_count', 'listed_count', 'favourites_count',
@@ -197,18 +327,24 @@ def extract_stat_tweet_feat(istrain, df):
     # fill nan using corresponding mean
     stat_feat_df = stat_feat_df.fillna(stat_feat_df.mean())
     return stat_feat_df, tweet_df
-split_source_reply('tweepy_data/original_data/test.data.txt')
-with open('tweepy_data/original_data/test_source.txt', 'r') as f:
-    content = f.readlines()
-source_ids = [c.strip() for c in content]
-with open('data/original_data/test_reply.txt', 'r') as f:
-    content = f.readlines()
-reply_ids = [c.strip() for c in content]
-merge_json('test', 'source', source_ids)
-merge_json('test','reply', reply_ids)
-raw_files = ['./tweepy_data/original_data/test.data.txt']
-json_files = ['./tweepy_data/objects/test_reply.json']
-for raw_file, json_file in zip(raw_files, json_files):
-    sort_by_time(raw_file, json_file)
-test_df = processing('test')
-test_stat_feat_df, test_tweet_df = extract_stat_tweet_feat(True, test_df)
+def get_tweet_stat_df(data_type):
+    split_source_reply(f'tweepy_data/original_data/{data_type}.data.txt')
+    with open(f'tweepy_data/original_data/{data_type}_source.txt', 'r') as f:
+        content = f.readlines()
+    source_ids = [c.strip() for c in content]
+    with open(f'data/original_data/{data_type}_reply.txt', 'r') as f:
+        content = f.readlines()
+    reply_ids = [c.strip() for c in content]
+    merge_json(data_type, 'source', source_ids)
+    merge_json(data_type,'reply', reply_ids)
+    raw_files = [f'./tweepy_data/original_data/{data_type}.data.txt']
+    json_files = [f'./tweepy_data/objects/{data_type}_reply.json']
+    for raw_file, json_file in zip(raw_files, json_files):
+        sort_by_time(raw_file, json_file)
+    df = processing(data_type)
+    if data_type == 'test':
+        stat_feat_df, tweet_df = extract_stat_tweet_feat(False, df)
+    else:
+        stat_feat_df, tweet_df = extract_stat_tweet_feat(True, df)
+    return  stat_feat_df, tweet_df
+# stat_feat_df, tweet_df = get_tweet_stat_df('train')
