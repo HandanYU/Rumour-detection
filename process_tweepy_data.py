@@ -255,7 +255,10 @@ def processing(data_type):
     # get 'verified', 'followers_count', 'listed_count'
     for i in [ 'protected', 'followers_count', 'friends_count', 
                 'listed_count', 'favourites_count', 'geo_enabled', 'verified', 
-                'statuses_count', 'contributors_enabled']:
+                'statuses_count', 'contributors_enabled','contributors_enabled', 
+                'is_translator', 'is_translation_enabled','has_extended_profile', 
+                'default_profile', 'default_profile_image', 'following', 
+                'follow_request_sent', 'notifications']:
         source_df[i] = source_df['user'].apply(lambda x: x[i])
         reply_df[i] = reply_df['user'].apply(lambda x: x[i])
     source_df['has_url'] = source_df['entities'].apply(lambda x: 0 if len(x['urls']) == 0 else 1)
@@ -290,7 +293,8 @@ def processing(data_type):
             'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
         'followers_count', 'friends_count', 'listed_count', 'favourites_count',
         'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
-        'geo_enabled', 'verified', 'contributors_enabled', 'isweekday']
+        'geo_enabled', 'verified', 'contributors_enabled', 'isweekday','contributors_enabled', 'is_translator', 'is_translation_enabled',
+        'has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']
     print('compute reply stat feat')
     for source_id, df in reply_df_source.groupby('source_id'):
         if str(source_id) not in source_df.index:
@@ -315,12 +319,13 @@ def extract_stat_tweet_feat(istrain, df):
         'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
        'followers_count', 'friends_count', 'listed_count', 'favourites_count',
        'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
-       'geo_enabled', 'verified', 'contributors_enabled', 'isweekday']] + ['contributors',
+       'geo_enabled', 'verified', 'contributors_enabled', 'isweekday', 'is_translator', 'is_translation_enabled',
+       'has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']] + ['contributors',
        'possibly_sensitive', 'possibly_sensitive_appealable',
         'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
        'followers_count', 'friends_count', 'listed_count', 'favourites_count',
        'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
-       'geo_enabled', 'verified', 'contributors_enabled', 'isweekday', 'reply_count']
+       'geo_enabled', 'verified', 'isweekday', 'reply_count','contributors_enabled', 'is_translator', 'is_translation_enabled','has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']
     stat_feat_df = df[statistic_features]
     stat_feat_df.index = df['tweet_id']
     if istrain:
