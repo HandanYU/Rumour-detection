@@ -73,14 +73,14 @@ def clean_tweet(content):
     ## www.
     content = re.sub(r'www.[^ ]+', '', content)
     # get the emoji and replace them as words
-    # emojis = emoji.distinct_emoji_list(content)
-    # for e in emojis:
-    #     try:
-    #         content = re.sub(e, emoji.demojize(e), content)
-    #     except:
-    #         print('no corresponding emoji!')
-    #         print(content)
-    #         content = re.sub(e, '', content)
+    emojis = emoji.distinct_emoji_list(content)
+    for e in emojis:
+        try:
+            content = re.sub(e, emoji.demojize(e), content)
+        except:
+            # print('no corresponding emoji!')
+            # print(content)
+            content = re.sub(e, '', content)
     content = re.sub('\w+\d+\w+', '', content) # remove the word contains numbers
     
     content = re.sub(r'[:_!\+“\-=——,$%^\?\\~\"\'@#$%&\*<>{}\[\]()/]', ' ', content) # remove punctuation, except .
@@ -320,25 +320,36 @@ def extract_stat_tweet_feat(istrain, df):
        'followers_count', 'friends_count', 'listed_count', 'favourites_count',
        'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
        'geo_enabled', 'verified', 'contributors_enabled', 'isweekday', 'is_translator', 'is_translation_enabled',
-       'has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']] + ['contributors',
+       'has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']] + ['tweet_id', 'contributors',
        'possibly_sensitive', 'possibly_sensitive_appealable',
         'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
        'followers_count', 'friends_count', 'listed_count', 'favourites_count',
        'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
        'geo_enabled', 'verified', 'isweekday', 'reply_count','contributors_enabled', 'is_translator', 'is_translation_enabled','has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']
-    stat_feat_df = df[statistic_features]
-    stat_feat_df.index = df['tweet_id']
+    
+    
+    
     if istrain:
+        stat_feat_df = df[statistic_features + ['label']]
         tweet_df = df[['tweet_id', 'text', 'reply_text', 'label']]
+        tweet_df.index = df['tweet_id']
+        # nonan_stat_feat_df = []
+        # for _, cur_df in stat_feat_df.groupby('label'):
+        #     nonan_stat_feat_df.append(cur_df.fillna(cur_df.mean()))
+        # nonan_stat_feat_df = pd.concat(nonan_stat_feat_df)
+        # nonan_stat_feat_df.index = nonan_stat_feat_df['tweet_id']
+        # nonan_stat_feat_df = nonan_stat_feat_df.loc[tweet_df.index]
     else:
+        stat_feat_df = df[statistic_features]
         tweet_df = df[['tweet_id', 'text', 'reply_text']]
+        tweet_df.index = df['tweet_id']
+        # nonan_stat_feat_df = stat_feat_df.fillna(stat_feat_df.mean())
     # tweet_df = df.drop(columns=statistic_features)
-    tweet_df.index = df['tweet_id']
+    
     # convert into float
     # for col in ['tweet_count', 'followers_count', 'verified']:
     #     stat_feat_df[col] = stat_feat_df[col].apply(lambda x: float(x))
     # fill nan using corresponding mean
-    stat_feat_df = stat_feat_df.fillna(stat_feat_df.mean())
     return stat_feat_df, tweet_df
 def get_tweet_stat_df(data_type):
     split_source_reply(f'tweepy_data/original_data/{data_type}.data.txt')
@@ -359,9 +370,17 @@ def get_tweet_stat_df(data_type):
         stat_feat_df, tweet_df = extract_stat_tweet_feat(False, df)
     else:
         stat_feat_df, tweet_df = extract_stat_tweet_feat(True, df)
+    nonan_stat_feat_df = []
+    if data_type != 'test':
+        for _, cur_df in stat_feat_df.groupby('label'):
+            nonan_stat_feat_df.append(cur_df.fillna(cur_df.mean()))
+        nonan_stat_feat_df = pd.concat(nonan_stat_feat_df)
+        nonan_stat_feat_df.index = nonan_stat_feat_df['tweet_id']
+        stat_feat_df = nonan_stat_feat_df.loc[tweet_df.index]
+    else:
+        stat_feat_df = stat_feat_df.fillna(stat_feat_df.mean(), inplace=True)
     return  stat_feat_df, tweet_df
 if __name__ == '__main__':
-    print(TYPE)
     stat_feat_df, tweet_df = get_tweet_stat_df(TYPE)
     stat_feat_df.to_csv(f'tweepy_data/res/{TYPE}_stat_feat_df.csv', index=False)
     tweet_df.to_csv(f'tweepy_data/res/{TYPE}_tweet_df.csv', index=False)
