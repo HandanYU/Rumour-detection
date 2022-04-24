@@ -9,15 +9,10 @@ from utils import timer
 from datetime import datetime
 from textblob import TextBlob
 import numpy as np
-from sklearn import preprocessing
 import os
 import tqdm
 import json
-import numpy as np
-import pandas as pd
 from textblob import TextBlob
-import pandas as pd
-from sklearn import preprocessing
 from time import strftime
 import argparse
 nltk.download('wordnet')
@@ -69,9 +64,11 @@ def clean_tweet(content):
     content = re.sub(r'@[A-Za-z0-9_]+', '', content) # remove twitter ID
     # remove url 
     ## http, https
-    content = re.sub(r'https?://[^ ]+', '', content) 
+    content = re.sub(r'https', '', content) 
+    # content = re.sub(r'https?://[^ ]+', '', content) 
     ## www.
-    content = re.sub(r'www.[^ ]+', '', content)
+    content = re.sub(r'www', '', content) 
+    # content = re.sub(r'www.[^ ]+', '', content)
     # get the emoji and replace them as words
     emojis = emoji.distinct_emoji_list(content)
     for e in emojis:
@@ -299,12 +296,16 @@ def processing(data_type):
     for source_id, df in reply_df_source.groupby('source_id'):
         if str(source_id) not in source_df.index:
             continue
-        if ','  in source_df.loc[source_id]['reply']:
+        if isinstance(source_df.loc[source_id]['reply'], pd.Series):
+            print('=======')
+            cur_data = [source_id] + [np.nan] * (len(statis_feature)+1)
+        else:
             ids = [str(i).strip() for i in source_df.loc[source_id]['reply'].split(',')]
             cur_data = [source_id, ' [SEP] '.join(df.loc[ids]['text'].values)]
             for i in statis_feature:
                 cur_data.append(df[i].sum())
-            stat_data.append(cur_data)
+        stat_data.append(cur_data)
+
     reply_stat_df = pd.DataFrame(columns=['tweet_id', 'reply_text'] + ['reply_' + s for s in statis_feature], data=stat_data)
     source_df.index = list(range(len(source_df)))
     source_df_reply = pd.merge(source_df, reply_stat_df, on='tweet_id', how='left')
@@ -370,15 +371,6 @@ def get_tweet_stat_df(data_type):
         stat_feat_df, tweet_df = extract_stat_tweet_feat(False, df)
     else:
         stat_feat_df, tweet_df = extract_stat_tweet_feat(True, df)
-    nonan_stat_feat_df = []
-    if data_type != 'test':
-        for _, cur_df in stat_feat_df.groupby('label'):
-            nonan_stat_feat_df.append(cur_df.fillna(cur_df.mean()))
-        nonan_stat_feat_df = pd.concat(nonan_stat_feat_df)
-        nonan_stat_feat_df.index = nonan_stat_feat_df['tweet_id']
-        stat_feat_df = nonan_stat_feat_df.loc[tweet_df.index]
-    else:
-        stat_feat_df = stat_feat_df.fillna(stat_feat_df.mean(), inplace=True)
     return  stat_feat_df, tweet_df
 if __name__ == '__main__':
     stat_feat_df, tweet_df = get_tweet_stat_df(TYPE)
