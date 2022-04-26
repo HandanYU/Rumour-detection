@@ -64,6 +64,7 @@ def clean_tweet(content):
     content = re.sub(r'@[A-Za-z0-9_]+', '', content) # remove twitter ID
     # remove url 
     ## http, https
+    content = re.sub(r'http', '', content)
     content = re.sub(r'https', '', content) 
     # content = re.sub(r'https?://[^ ]+', '', content) 
     ## www.
@@ -248,11 +249,10 @@ def processing(data_type):
     source_df = clean_test_data(source_df)
     reply_df = clean_test_data(reply_df)
     
-    
     # get 'verified', 'followers_count', 'listed_count'
     for i in [ 'protected', 'followers_count', 'friends_count', 
                 'listed_count', 'favourites_count', 'geo_enabled', 'verified', 
-                'statuses_count', 'contributors_enabled','contributors_enabled', 
+                'statuses_count','contributors_enabled', 
                 'is_translator', 'is_translation_enabled','has_extended_profile', 
                 'default_profile', 'default_profile_image', 'following', 
                 'follow_request_sent', 'notifications']:
@@ -264,6 +264,7 @@ def processing(data_type):
     source_df = concat_reply(data_type, source_df)
     # get reply count
     source_df['reply_count'] = source_df['reply'].apply(lambda x: len(x.split(',')))
+    
     source_df.index = [str(i) for i in source_df['tweet_id']]
 
     # sorted ids
@@ -290,14 +291,13 @@ def processing(data_type):
             'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
         'followers_count', 'friends_count', 'listed_count', 'favourites_count',
         'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
-        'geo_enabled', 'verified', 'contributors_enabled', 'isweekday','contributors_enabled', 'is_translator', 'is_translation_enabled',
+        'geo_enabled', 'verified', 'isweekday','contributors_enabled', 'is_translator', 'is_translation_enabled',
         'has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']
     print('compute reply stat feat')
     for source_id, df in reply_df_source.groupby('source_id'):
         if str(source_id) not in source_df.index:
             continue
         if isinstance(source_df.loc[source_id]['reply'], pd.Series):
-            print('=======')
             cur_data = [source_id] + [np.nan] * (len(statis_feature)+1)
         else:
             ids = [str(i).strip() for i in source_df.loc[source_id]['reply'].split(',')]
@@ -307,10 +307,13 @@ def processing(data_type):
         stat_data.append(cur_data)
 
     reply_stat_df = pd.DataFrame(columns=['tweet_id', 'reply_text'] + ['reply_' + s for s in statis_feature], data=stat_data)
+    
     source_df.index = list(range(len(source_df)))
     source_df_reply = pd.merge(source_df, reply_stat_df, on='tweet_id', how='left')
     if data_type != 'test':
-        source_df_reply = concat_label(data_type, source_df_reply)   
+        source_df_reply = concat_label(data_type, source_df_reply)
+    for i in ['reply_' + s for s in statis_feature]:
+        source_df_reply[i] = source_df_reply.apply(lambda x: x[i] / x['reply_count'], axis=1)
     return  source_df_reply
 def extract_stat_tweet_feat(istrain, df):
     # extract statistic features
@@ -331,7 +334,7 @@ def extract_stat_tweet_feat(istrain, df):
     
     
     if istrain:
-        stat_feat_df = df[statistic_features + ['label']]
+        stat_feat_df = df[statistic_features + ['label', 'tweet_id']]
         tweet_df = df[['tweet_id', 'text', 'reply_text', 'label']]
         tweet_df.index = df['tweet_id']
         # nonan_stat_feat_df = []
@@ -341,7 +344,7 @@ def extract_stat_tweet_feat(istrain, df):
         # nonan_stat_feat_df.index = nonan_stat_feat_df['tweet_id']
         # nonan_stat_feat_df = nonan_stat_feat_df.loc[tweet_df.index]
     else:
-        stat_feat_df = df[statistic_features]
+        stat_feat_df = df[statistic_features + ['tweet_id']]
         tweet_df = df[['tweet_id', 'text', 'reply_text']]
         tweet_df.index = df['tweet_id']
         # nonan_stat_feat_df = stat_feat_df.fillna(stat_feat_df.mean())
