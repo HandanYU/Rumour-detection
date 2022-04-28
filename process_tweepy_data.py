@@ -58,6 +58,7 @@ def clean_tweet(content):
     # month_num = compute_num_month(content)
 
     # get the number of url
+    question_mark_num = len(re.findall(r'\?', content))
     mentioned_url_num = len(re.findall(r'https?://[^ ]+', content))
     mentioned_url_num += len(re.findall(r'www.[^ ]+', content))
     # get the number of twitter ID be mentioned
@@ -94,7 +95,7 @@ def clean_tweet(content):
     # do stemming
     content = [stemmer.stem(token.strip()) for token in content]
     
-    return ' '.join(content), mentioned_url_num, id_num 
+    return ' '.join(content), mentioned_url_num, id_num, question_mark_num 
     #, month_num
 # @timer('ms')
 def json2df(json_file, json_content=None):
@@ -116,6 +117,8 @@ def clean_test_data(df, is_test=True):
     df['text'] = df['temp'].apply(lambda x: x[0])
     df['mentioned_url_num'] = df['temp'].apply(lambda x: x[1])
     df['id_num'] = df['temp'].apply(lambda x: x[2])
+
+    df['question_mark'] = df['temp'].apply(lambda x: x[3])
     df['tweet_id'] = [str(i) for i in df.index]
     if is_test:
         df['tweet_id'] = df['id'].apply(lambda x: str(x))
@@ -262,10 +265,18 @@ def processing(data_type):
     
 
     source_df['count_age'] = source_df['user'].apply(lambda x: datetime.now().year - int(x['created_at'].split(' ')[-1]))   
+    source_df['user_engagement'] = source_df.apply(lambda x: x['statuses_count'] / (x['count_age']+1))
+    source_df['following_rate'] = source_df.apply(lambda x: x['following'] / (x['count_age']+1))
+    source_df['favourite_rate'] = source_df.apply(lambda x: x['favourites_count'] / (x['count_age']+1))
     source_df['has_url'] = source_df['entities'].apply(lambda x: 0 if len(x['urls']) == 0 else 1)
     # get reply statistic info
     reply_df['count_age'] = reply_df['user'].apply(lambda x: datetime.now().year - int(x['created_at'].split(' ')[-1]))   
+    reply_df['user_engagement'] = reply_df.apply(lambda x: x['statuses_count'] / (x['count_age']+1))
+    reply_df['following_rate'] = reply_df.apply(lambda x: x['following'] / (x['count_age']+1))
+    reply_df['favourite_rate'] = reply_df.apply(lambda x: x['favourites_count'] / (x['count_age']+1))
+
     reply_df['has_url'] = reply_df['entities'].apply(lambda x: 0 if len(x['urls']) == 0 else 1)
+    
     source_df = concat_reply(data_type, source_df)
     # get reply count
     source_df['reply_count'] = source_df['reply'].apply(lambda x: len(x.split(',')))
@@ -291,9 +302,9 @@ def processing(data_type):
     reply_df_source = pd.merge(reply_df, data_txtDF, on='tweet_id', how='left')
     reply_df_source.index = [str(i) for i in reply_df_source['tweet_id']]
     stat_data = []
-    statis_feature=[ 'contributors', 'count_age',
+    statis_feature=[ 'contributors', 'user_engagement','following_rate','favourite_rate',
         'possibly_sensitive', 'possibly_sensitive_appealable',
-            'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
+            'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num', 'question_mark'
         'followers_count', 'friends_count', 'listed_count', 'favourites_count',
         'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
         'geo_enabled', 'verified', 'isweekday','contributors_enabled', 'is_translator', 'is_translation_enabled',
@@ -323,15 +334,15 @@ def processing(data_type):
 def extract_stat_tweet_feat(istrain, df):
     # extract statistic features
     # reply_reply_count， reply_quote_count，quote_count
-    statistic_features = ['reply_' + i for i in [ 'count_age','contributors',
-       'possibly_sensitive', 'possibly_sensitive_appealable',
-        'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
+    statistic_features = ['reply_' + i for i in [ 'user_engagement','contributors','favourite_rate',
+       'possibly_sensitive', 'possibly_sensitive_appealable','following_rate',
+        'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num','question_mark',
        'followers_count', 'friends_count', 'listed_count', 'favourites_count',
        'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
        'geo_enabled', 'verified', 'contributors_enabled', 'isweekday', 'is_translator', 'is_translation_enabled',
-       'has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']] + ['tweet_id','count_age', 'contributors',
-       'possibly_sensitive', 'possibly_sensitive_appealable',
-        'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num',
+       'has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']] + ['tweet_id','user_engagement', 'contributors',
+       'possibly_sensitive', 'possibly_sensitive_appealable','following_rate',
+        'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num','favourite_rate','question_mark',
        'followers_count', 'friends_count', 'listed_count', 'favourites_count',
        'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
        'geo_enabled', 'verified', 'isweekday', 'reply_count','contributors_enabled', 'is_translator', 'is_translation_enabled','has_extended_profile', 'default_profile', 'default_profile_image', 'following', 'follow_request_sent', 'notifications']
