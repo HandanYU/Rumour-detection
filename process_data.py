@@ -29,12 +29,15 @@ dev_label = dev_stat_feat_df[['tweet_id', 'label']]
 nonan_stat_feat_df = []
 tweet_df_ls = []
 real_cols = train_stat_feat_df[stat_feat].dropna(axis=1, how='all').columns
-for _, cur_df in train_stat_feat_df.groupby('label'):
+imputer_1 = KNNImputer(n_neighbors=5)
+imputer_0 = KNNImputer(n_neighbors=5)
+for l, cur_df in train_stat_feat_df.groupby('label'):
        tweet_df_ls.extend(cur_df['tweet_id'].values)
        cur_df = cur_df[real_cols]
-       imputer = KNNImputer(n_neighbors=5)
-       print(cur_df.shape, imputer.fit_transform(cur_df).shape)
-       nonan_stat_feat_df.append(pd.DataFrame(columns=real_cols, data=imputer.fit_transform(cur_df)))
+       if l == 1:
+              nonan_stat_feat_df.append(pd.DataFrame(columns=real_cols, data=imputer_1.fit_transform(cur_df)))
+       else:
+              nonan_stat_feat_df.append(pd.DataFrame(columns=real_cols, data=imputer_0.fit_transform(cur_df))) 
 train_stat_feat_df = pd.concat(nonan_stat_feat_df)
 train_stat_feat_df['tweet_id'] = tweet_df_ls
 train_stat_feat_df = train_stat_feat_df.drop_duplicates('tweet_id')
@@ -44,21 +47,25 @@ train_stat_feat_df = pd.merge(train_stat_feat_df, train_label, on='tweet_id', ho
 
 nonan_stat_feat_df = []
 tweet_df_ls = []
-for _, cur_df in dev_stat_feat_df.groupby('label'):
+for l, cur_df in dev_stat_feat_df.groupby('label'):
        tweet_df_ls.extend(cur_df['tweet_id'].values)
        cur_df = cur_df[real_cols]
-       imputer = KNNImputer(n_neighbors=5)
-       nonan_stat_feat_df.append(pd.DataFrame(columns=real_cols, data=imputer.fit_transform(cur_df)))
+       if l == 1:
+              nonan_stat_feat_df.append(pd.DataFrame(columns=real_cols, data=imputer_1.transform(cur_df)))
+       else:
+              nonan_stat_feat_df.append(pd.DataFrame(columns=real_cols, data=imputer_0.transform(cur_df)))
 dev_stat_feat_df = pd.concat(nonan_stat_feat_df)
 dev_stat_feat_df['tweet_id'] = tweet_df_ls
 dev_stat_feat_df = dev_stat_feat_df.drop_duplicates('tweet_id')
 dev_stat_feat_df = pd.merge(dev_stat_feat_df, dev_label, on='tweet_id', how='right')
 
 cur_df = test_stat_feat_df[real_cols]
+whole_df = pd.concat([train_stat_feat_df.drop(columns=['label']), dev_stat_feat_df.drop(columns=['label']), test_stat_feat_df])
 imputer = KNNImputer(n_neighbors=5)
-test_stat_feat_df = pd.DataFrame(columns=real_cols, data=imputer.fit_transform(cur_df))
-test_stat_feat_df.index = test_id
-# test_stat_feat_df = test_stat_feat_df.loc[test_id]
+whole_df = pd.DataFrame(columns=real_cols, index=whole_df['tweet_id'], data=imputer.fit_transform(whole_df[real_cols]))
+test_stat_feat_df = whole_df[whole_df.index.isin(test_id)]
+# test_stat_feat_df.index = test_id
+test_stat_feat_df = test_stat_feat_df.loc[test_id]
 dev_stat_feat_df.to_csv('./tweepy_data/res/dev_stat_feat_nonan_df.csv')
 train_stat_feat_df.to_csv('./tweepy_data/res/train_stat_feat_nonan_df.csv')
 test_stat_feat_df.to_csv('./tweepy_data/res/test_stat_feat_nonan_df.csv')
