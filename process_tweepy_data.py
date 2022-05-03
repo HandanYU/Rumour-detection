@@ -5,7 +5,7 @@ import re
 import nltk
 import json
 import pandas as pd
-from utils import timer
+# from utils import timer
 from datetime import datetime
 from textblob import TextBlob
 import numpy as np
@@ -73,14 +73,14 @@ def clean_tweet(content):
     content = re.sub(r'www', '', content) 
     # content = re.sub(r'www.[^ ]+', '', content)
     # get the emoji and replace them as words
-    emojis = emoji.distinct_emoji_list(content)
-    for e in emojis:
-        try:
-            content = re.sub(e, emoji.demojize(e), content)
-        except:
-            # print('no corresponding emoji!')
-            # print(content)
-            content = re.sub(e, '', content)
+    # emojis = emoji.distinct_emoji_list(content)
+    # for e in emojis:
+    #     try:
+    #         content = re.sub(e, emoji.demojize(e), content)
+    #     except:
+    #         # print('no corresponding emoji!')
+    #         # print(content)
+    #         content = re.sub(e, '', content)
     content = re.sub('\w+\d+\w+', '', content) # remove the word contains numbers
     
     content = re.sub(r'[:_!\+“\-=——,$%^\?\\~\"\'@#$%&\*<>{}\[\]()/]', ' ', content) # remove punctuation, except .
@@ -170,9 +170,11 @@ def split_source_reply(txt_file):
 def merge_json(data_type, source_or_reply, ids_list):
     merges_file = os.path.join(f'./tweepy_data/objects/', f'{data_type}_{source_or_reply}.json')
     path_results = f'./tweepy_data/objects/{data_type}_objects'
+    
     with open(merges_file, "w", encoding="utf-8") as f0:
-        for file in tqdm.tqdm(os.listdir(path_results)):
-            if file.split('.')[0] in ids_list:
+        for file in os.listdir(path_results):
+            if file.split('.')[0].strip() in ids_list:
+                print('===', file.split('.')[0].strip())
                 with open(os.path.join(path_results, file), "r", encoding="utf-8") as f1:
                     for line in f1:
                         line_dict = json.loads(line)
@@ -184,6 +186,7 @@ def merge_json(data_type, source_or_reply, ids_list):
 def sort_by_time(raw_file, json_file):
     with open(raw_file) as file:
         ids = file.readlines()
+        
     df = pd.read_json(path_or_buf=json_file, lines=True)
     df.index = [str(i) for i in df['id']]
     save_name = raw_file[:-4] + '_sorted.txt'
@@ -244,15 +247,15 @@ def processing(data_type):
        'in_reply_to_screen_name', 'user', 'geo', 'coordinates', 'place',
        'contributors', 'is_quote_status', 'retweet_count', 'favorite_count',
        'favorited', 'retweeted', 'lang', 'extended_entities',
-       'possibly_sensitive', 'possibly_sensitive_appealable',
-       'quoted_status_id', 'quoted_status_id_str', 'quoted_status']
+       'possibly_sensitive', 'possibly_sensitive_appealable']
+    #    'quoted_status_id', 'quoted_status_id_str', 'quoted_status']
     source_df = pd.read_json(path_or_buf=f'./tweepy_data/objects/{data_type}_source.json', lines=True)
     source_df = source_df[used_cols]
     reply_df= pd.read_json(path_or_buf=f'./tweepy_data/objects/{data_type}_reply.json', lines=True)
     reply_df = reply_df[used_cols]
     source_df = clean_test_data(source_df)
     reply_df = clean_test_data(reply_df)
-    
+    print('cleaned')
     # get 'verified', 'followers_count', 'listed_count'
     for i in ['protected', 'followers_count', 'friends_count', 
                 'listed_count', 'favourites_count', 'geo_enabled', 'verified', 
@@ -260,20 +263,20 @@ def processing(data_type):
                 'is_translator', 'is_translation_enabled','has_extended_profile', 
                 'default_profile', 'default_profile_image', 'following', 
                 'follow_request_sent', 'notifications']:
-        source_df[i] = source_df['user'].apply(lambda x: x[i])
-        reply_df[i] = reply_df['user'].apply(lambda x: x[i])
+        source_df[i] = source_df['user'].apply(lambda x: x.get(i, 0))
+        reply_df[i] = reply_df['user'].apply(lambda x: x.get(i, 0))
     
-
-    source_df['count_age'] = source_df['user'].apply(lambda x: datetime.now().year - int(x['created_at'].split(' ')[-1]))   
-    source_df['user_engagement'] = source_df.apply(lambda x: x['statuses_count'] / (x['count_age']+1))
-    source_df['following_rate'] = source_df.apply(lambda x: x['following'] / (x['count_age']+1))
-    source_df['favourite_rate'] = source_df.apply(lambda x: x['favourites_count'] / (x['count_age']+1))
+    source_df['count_age'] = source_df['user'].apply(lambda x: datetime.now().year - int(x['created_at'].split(' ')[-1]))
+    
+    source_df['user_engagement'] = source_df.apply(lambda x: x['statuses_count'] / (x['count_age']+1) if isinstance(x['statuses_count'], int) and isinstance(x['count_age'], int)  else 0, axis=1)
+    source_df['following_rate'] = source_df.apply(lambda x: x['following'] / (x['count_age']+1) if isinstance(x['following'], int) and isinstance(x['count_age'], int)  else 0, axis=1)
+    source_df['favourite_rate'] = source_df.apply(lambda x: x['favourites_count'] / (x['count_age']+1) if isinstance(x['favourites_count'], int) and isinstance(x['count_age'], int)  else 0, axis=1)
     source_df['has_url'] = source_df['entities'].apply(lambda x: 0 if len(x['urls']) == 0 else 1)
     # get reply statistic info
     reply_df['count_age'] = reply_df['user'].apply(lambda x: datetime.now().year - int(x['created_at'].split(' ')[-1]))   
-    reply_df['user_engagement'] = reply_df.apply(lambda x: x['statuses_count'] / (x['count_age']+1))
-    reply_df['following_rate'] = reply_df.apply(lambda x: x['following'] / (x['count_age']+1))
-    reply_df['favourite_rate'] = reply_df.apply(lambda x: x['favourites_count'] / (x['count_age']+1))
+    reply_df['user_engagement'] = reply_df.apply(lambda x: x['statuses_count'] / (x['count_age']+1)  if isinstance(x['statuses_count'], int) and isinstance(x['count_age'], int)  else 0, axis=1)
+    reply_df['following_rate'] = reply_df.apply(lambda x: x['following'] / (x['count_age']+1)  if isinstance(x['following'], int) and isinstance(x['count_age'], int)  else 0, axis=1)
+    reply_df['favourite_rate'] = reply_df.apply(lambda x: x['favourites_count'] / (x['count_age']+1)  if isinstance(x['favourites_count'], int) and isinstance(x['count_age'], int)  else 0, axis=1)
 
     reply_df['has_url'] = reply_df['entities'].apply(lambda x: 0 if len(x['urls']) == 0 else 1)
     
@@ -304,7 +307,7 @@ def processing(data_type):
     stat_data = []
     statis_feature=[ 'contributors', 'user_engagement','following_rate','favourite_rate',
         'possibly_sensitive', 'possibly_sensitive_appealable',
-            'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num', 'question_mark'
+            'retweet_count', 'favorite_count', 'mentioned_url_num', 'id_num', 'question_mark',
         'followers_count', 'friends_count', 'listed_count', 'favourites_count',
         'statuses_count', 'has_url', 'senti_score','truncated', 'is_quote_status', 'favorited', 'retweeted', 'protected',
         'geo_enabled', 'verified', 'isweekday','contributors_enabled', 'is_translator', 'is_translation_enabled',
@@ -326,7 +329,7 @@ def processing(data_type):
     
     source_df.index = list(range(len(source_df)))
     source_df_reply = pd.merge(source_df, reply_stat_df, on='tweet_id', how='left')
-    if data_type != 'test':
+    if data_type == 'dev' or data_type == 'train':
         source_df_reply = concat_label(data_type, source_df_reply)
     for i in ['reply_' + s for s in statis_feature]:
         source_df_reply[i] = source_df_reply.apply(lambda x: x[i] / x['reply_count'], axis=1)
@@ -372,27 +375,28 @@ def extract_stat_tweet_feat(istrain, df):
     # fill nan using corresponding mean
     return stat_feat_df, tweet_df
 def get_tweet_stat_df(data_type):
-    split_source_reply(f'tweepy_data/original_data/{data_type}.data.txt')
-    with open(f'tweepy_data/original_data/{data_type}_source.txt', 'r') as f:
-        content = f.readlines()
-    source_ids = [c.strip() for c in content]
-    with open(f'data/original_data/{data_type}_reply.txt', 'r') as f:
-        content = f.readlines()
-    reply_ids = [c.strip() for c in content]
-    merge_json(data_type, 'source', source_ids)
-    merge_json(data_type,'reply', reply_ids)
-    raw_files = [f'./tweepy_data/original_data/{data_type}.data.txt']
-    json_files = [f'./tweepy_data/objects/{data_type}_reply.json']
-    for raw_file, json_file in zip(raw_files, json_files):
-        sort_by_time(raw_file, json_file)
+    # split_source_reply(f'tweepy_data/original_data/{data_type}.data.txt')
+    # with open(f'tweepy_data/original_data/{data_type}_source.txt', 'r') as f:
+    #     content = f.readlines()
+    # source_ids = [c.strip() for c in content]
+    # with open(f'tweepy_data/original_data/{data_type}_reply.txt', 'r') as f:
+    #     content = f.readlines()
+    # reply_ids = [c.strip() for c in content]
+    # merge_json(data_type, 'source', source_ids)
+    # merge_json(data_type,'reply', reply_ids)
+    # raw_files = [f'./tweepy_data/original_data/{data_type}.data.txt']
+    # json_files = [f'./tweepy_data/objects/{data_type}_reply.json']
+    # for raw_file, json_file in zip(raw_files, json_files):
+    #     sort_by_time(raw_file, json_file)
     df = processing(data_type)
-    if data_type == 'test':
+    if data_type == 'test' or data_type == 'covid':
         stat_feat_df, tweet_df = extract_stat_tweet_feat(False, df)
     else:
         stat_feat_df, tweet_df = extract_stat_tweet_feat(True, df)
     return  stat_feat_df, tweet_df
 if __name__ == '__main__':
     stat_feat_df, tweet_df = get_tweet_stat_df(TYPE)
+    print(f'tweepy_data/res/{TYPE}_stat_feat_df.csv')
     stat_feat_df.to_csv(f'tweepy_data/res/{TYPE}_stat_feat_df.csv', index=False)
     tweet_df.to_csv(f'tweepy_data/res/{TYPE}_tweet_df.csv', index=False)
     print('saving.')
