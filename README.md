@@ -1,5 +1,17 @@
 # Rumour-detection
 
+## Preparation
+```bash
+python==3.8
+torch==1.10.1
+transformers==4.18.0
+PyYAML==5.4.1
+tqdm==4.62.3
+pandas==1.2.5
+numpy==1.21.2
+scikit-learn==1.0.2
+```
+
 ## Data Pre-processing
 Through call *process_tweepy_data.py* and define the data type (i.e., train or dev or test or covid, pre-processe the tweet text including source tweets and replies and also extract statistic features from raw data.
 ```python
