@@ -1,6 +1,6 @@
 # Rumour-detection
 
-## Preparation
+## Requirements
 ```bash
 python==3.8
 torch==1.10.1
