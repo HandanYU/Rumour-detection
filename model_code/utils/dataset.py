@@ -31,7 +31,7 @@ class TweetDataset(Data.Dataset):
     def __getitem__(self, idx):
         txt = self.tweet_df.text.iloc[idx]
         static = self.static_df.iloc[idx]
-        if self.data_type != 'test':
+        if self.data_type == 'test' or self.data_type == 'dev':
             label = self.tweet_df.label.iloc[idx]
         tokens = self.tokenizer.tokenize(txt)
         if len(tokens) < self.max_len:
