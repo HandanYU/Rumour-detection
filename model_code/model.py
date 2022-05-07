@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-# from transformers import BertModel
+from transformers import BertModel
 from transformers import AutoModel
 import transformers
 transformers.logging.set_verbosity_error()
@@ -68,7 +68,7 @@ class BertweetClassifier(nn.Module):
                                   nn.Sigmoid()
                                  )
 
-    def forward(self, seq_, attn_masks, stats):
+    def forward(self, seq_, attn_masks, seg, stats):
         '''
         Inputs:
             -seq : Tensor of shape [B, T] containing token ids of sequences
@@ -109,7 +109,7 @@ class BertweetTextClassifier(nn.Module):
                                   nn.Sigmoid()
                                  )
 
-    def forward(self, seq_, attn_masks, stats):
+    def forward(self, seq_, attn_masks,seg,  stats):
         '''
         Inputs:
             -seq : Tensor of shape [B, T] containing token ids of sequences
