@@ -27,6 +27,7 @@ MODEL_DICT = {'bert': RumorClassifier, 'bertweet': BertweetClassifier, 'bertweet
 
 LOG_FOUT = open(os.path.join('./log', f'{MODEL}.txt'), 'w')
 if __name__ == '__main__':
+    print('read data.')
     # read the statistic data set
     train_stat = pd.read_csv('dataset/train_scaled_stat_feat_df.csv')
     # read tweet text data set
@@ -66,6 +67,7 @@ if __name__ == '__main__':
     dev_loader = Data.DataLoader(dev_set, batch_size=len(dev_set), shuffle=False)
 
     # build model
+    print('load model')
     net = MODEL_DICT[MODEL]()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     net.to(device)
@@ -83,6 +85,7 @@ if __name__ == '__main__':
     for ep in range(100):
         net.train()
         whole_loss = 0
+        
         for it, (seq, mask, seg, stats, labels, idx) in enumerate(train_loader):
             reg_loss = 0
             for param in net.parameters():
