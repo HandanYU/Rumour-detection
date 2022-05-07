@@ -31,7 +31,7 @@ class TweetDataset(Data.Dataset):
     def __getitem__(self, idx):
         txt = self.tweet_df.text.iloc[idx]
         static = self.static_df.iloc[idx]
-        if self.data_type == 'test' or self.data_type == 'dev':
+        if self.data_type != 'test':
             label = self.tweet_df.label.iloc[idx]
         tokens = self.tokenizer.tokenize(txt)
         if len(tokens) < self.max_len:
@@ -75,7 +75,7 @@ class RawTweetDataset(Data.Dataset):
             static_df.drop(columns=['Unnamed: 0', 'label'], inplace=True)
         else:
             static_df.drop(columns=['tweet_id'], inplace=True)
-        static_df = static_df.drop(columns=zero_cols, inplace=True)
+        static_df.drop(columns=zero_cols, inplace=True)
         static_df.fillna('', inplace=True)
         tweet_df.reply_text.fillna('', inplace=True)
         tweet_df.text.fillna('', inplace=True)
@@ -94,9 +94,9 @@ class RawTweetDataset(Data.Dataset):
         tokens_mask = self.tokenizer(self.tweet_df.text.iloc[idx], self.tweet_df.reply_text.iloc[idx], truncation=True, padding='max_length', max_length=self.max_len)
         token_ids, attn_mask = tokens_mask['input_ids'], tokens_mask['attention_mask']
         if self.data_type == 'train' or self.data_type == 'dev':
-            return torch.tensor(token_ids), torch.tensor(attn_mask),torch.Tensor(static),  torch.tensor(label), idx
+            return torch.tensor(token_ids), torch.tensor(attn_mask), torch.zeros(len(attn_mask)) ,torch.Tensor(static),  torch.tensor(label), idx
         else:
-            return torch.tensor(token_ids), torch.tensor(attn_mask),torch.Tensor(static),  idx
+            return torch.tensor(token_ids), torch.tensor(attn_mask),torch.zeros(len(attn_mask)) , torch.Tensor(static),  idx
 class TreeDataset(Data.Dataset):
     def __init__(self, data_type, max_len, tokenizer, bert_layer):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
